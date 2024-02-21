@@ -1,33 +1,43 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Schema, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-// Here we created a representation of a userDoc in our DB
-//Type that represent out user
-export type UserType = 
-{
-    _id: string;
+
+// Define an interface representing the document in MongoDB
+interface UserDoc extends Document {
     email: string;
     password: string;
     firstName: string;
     lastName: string;
-};
+}
 
-//User schema
+// Define an interface for the user model
+interface UserModel extends Model<UserDoc> {
+    // You can define static methods here if needed
+}
 
-const userSchema = new mongoose.Schema({
-    email: { type: String, required: true, unique: true},
-    password: { type: String, require: true},
-    firstName: { type: String, required: true},
-    lastName: { type: String, required: true}
+// User schema
+const userSchema = new Schema<UserDoc, UserModel>({
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true }
 });
 
-userSchema.pre("save", async function (next){
-    if(this.isModified('password')){
-        this.password = await bcrypt.hash(this.password, 12);
+// Pre-save hook
+userSchema.pre('save', async function (next) {
+    if (this.isModified('password')) {
+        try {
+            const hashedPassword: string = await bcrypt.hash(this.password, 12);
+            this.password = hashedPassword;
+            next();
+        } catch (error) {
+            next(error); // Pass any error that occurs during hashing to the next middleware
+        }
+    } else {
+        next(); // If the password is not modified, proceed to the next middleware
     }
-    next();
 });
 
-const User = mongoose.model<UserType>("User", userSchema);
+// Define and export the User model
+const User = mongoose.model<UserDoc, UserModel>("User", userSchema);
 
 export default User;
-
